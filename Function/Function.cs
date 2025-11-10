@@ -32,10 +32,10 @@ namespace Function
         public async Task<APIGatewayProxyResponse> Login(APIGatewayProxyRequest request, ILambdaContext context)
         {
             // Unity가 보낸 JSON Body를 파싱
-            LoginDTO loginRequest = new LoginDTO();
+            RequestLogin loginRequest = new RequestLogin();
             try
             {
-                loginRequest = JsonSerializer.Deserialize<LoginDTO>(request.Body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                loginRequest = JsonSerializer.Deserialize<RequestLogin>(request.Body, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
             catch (Exception e)
             {
@@ -52,7 +52,7 @@ namespace Function
                 // 3. ID를 기반으로 DB에 저장된 해시된 비밀번호를 먼저 가져옴
                 string sqlGetHash = "SELECT PW FROM `User` WHERE ID = @ID";
                 await using var cmdGetHash = new MySqlCommand(sqlGetHash, conn);
-                cmdGetHash.Parameters.AddWithValue("@ID", loginRequest.ID);
+                cmdGetHash.Parameters.AddWithValue("@ID", loginRequest.id);
 
                 string storedHash = null;
                 await using (var readerHash = await cmdGetHash.ExecuteReaderAsync())
@@ -64,17 +64,17 @@ namespace Function
                 }
 
                 // 4. ID가 존재하지 않거나 BCrypt로 비밀번호를 비교했는데 일치하지 않는 경우
-                if (storedHash == null || !BCrypt.Net.BCrypt.Verify(loginRequest.PW, storedHash))
+                if (storedHash == null || !BCrypt.Net.BCrypt.Verify(loginRequest.pw, storedHash))
                 {
                     // 5. (실패) 일치하는 유저 없음
-                    context.Logger.LogWarning(string.Format("로그인 실패: {0}", loginRequest.ID));
+                    context.Logger.LogWarning(string.Format("로그인 실패: {0}", loginRequest.id));
                     return CreateResponse(HttpStatusCode.Unauthorized, "ID 또는 비밀번호가 일치하지 않습니다.");
                 }
 
                 // 6. (성공) 비밀번호가 일치하면 나머지 유저 정보를 가져옴
                 string sqlGetUserData = "SELECT UID, Name, Level, EXP, ClearedStageCode FROM `User` WHERE ID = @ID";
                 await using var cmdGetUserData = new MySqlCommand(sqlGetUserData, conn);
-                cmdGetUserData.Parameters.AddWithValue("@ID", loginRequest.ID);
+                cmdGetUserData.Parameters.AddWithValue("@ID", loginRequest.id);
 
                 await using var reader = await cmdGetUserData.ExecuteReaderAsync();
 
@@ -83,17 +83,17 @@ namespace Function
                 {
                     // 8. (성공) 로그인 성공. 유저 데이터를 응답으로 보냄
                     UserInfo user = new UserInfo();
-                    user.UID = reader.GetInt32("UID");
-                    user.Name = reader.GetString("Name");
-                    user.Level = reader.GetInt32("Level");
-                    user.EXP = reader.GetInt32("EXP");
-                    user.ClearStageCode = reader.IsDBNull(reader.GetOrdinal("ClearedStageCode")) ? null : reader.GetString("ClearedStageCode");
+                    user.uid = reader.GetInt32("UID");
+                    user.name = reader.GetString("Name");
+                    user.level = reader.GetInt32("Level");
+                    user.exp = reader.GetInt32("EXP");
+                    user.clearStageCode = reader.IsDBNull(reader.GetOrdinal("ClearedStageCode")) ? null : reader.GetString("ClearedStageCode");
                     return CreateResponse(HttpStatusCode.OK, user);
                 }
                 else
                 {
                     // 8. (실패) 일치하는 유저 없음
-                    context.Logger.LogWarning(string.Format("로그인 실패: {0}", loginRequest.ID));
+                    context.Logger.LogWarning(string.Format("로그인 실패: {0}", loginRequest.id));
                     return CreateResponse(HttpStatusCode.Unauthorized, "ID 또는 비밀번호가 일치하지 않습니다.");
                 }
             }
