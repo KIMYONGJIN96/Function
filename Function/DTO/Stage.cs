@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Function
+namespace Function.DTO
 {
     public class Stage
     {

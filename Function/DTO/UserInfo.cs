@@ -4,13 +4,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Function
+namespace Function.DTO
 {
-    public class Level
+    public class UserInfo
     {
+        public int uid { get; set; }
+        public string name { get; set; }
         public int level { get; set; }
-        public int requiredExp { get; set; }
         public int hp { get; set; }
         public int atk { get; set; }
+        public int exp { get; set; }
+        public string clearStageCode { get; set; }
     }
 }
