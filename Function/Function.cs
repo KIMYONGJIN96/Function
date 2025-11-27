@@ -269,7 +269,7 @@ namespace Function
                 await using var conn = new MySqlConnection(connString);
                 await conn.OpenAsync();
 
-                string sql = "SELECT CardCode, CardName, CardType, Cost, EffectValue, Description FROM `Card` WHERE CardCode = @CardCode";
+                string sql = "SELECT CardCode, CardName, CardType, Cost, EffectValue, Explanation FROM `Card` WHERE CardCode = @CardCode";
                 await using var cmd = new MySqlCommand(sql, conn);
                 cmd.Parameters.AddWithValue("@CardCode", cardCode);
 
@@ -286,7 +286,7 @@ namespace Function
                         cardType = parsedCardType,
                         cost = reader.GetInt32("Cost"),
                         effectValue = reader.GetInt32("EffectValue"),
-                        description = reader.GetString("Description")
+                        description = reader.GetString("Explanation")
                     };
                     return CreateResponse(HttpStatusCode.OK, cardInfo);
                 }
@@ -300,6 +300,56 @@ namespace Function
                 context.Logger.LogError(string.Format("[DB 오류 : {0}]", e.Message));
                 return CreateResponse(HttpStatusCode.InternalServerError, "서버 오류가 발생했습니다.");
             }
+        }
+
+        // Function.cs 클래스 내부에 추가
+        public APIGatewayProxyResponse GetAllCardCodes(APIGatewayProxyRequest request, ILambdaContext context)
+        {
+            // DB 접속 정보 (환경 변수 사용 권장)
+            string dbHost = Environment.GetEnvironmentVariable("DB_HOST");
+            string dbUser = Environment.GetEnvironmentVariable("DB_USER");
+            string dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+            string dbSchema = Environment.GetEnvironmentVariable("DB_GAME_SCHEMA");
+
+            var builder = new MySqlConnectionStringBuilder
+            {
+                Server = dbHost,
+                UserID = dbUser,
+                Password = dbPassword,
+                Database = dbSchema,
+                SslMode = MySqlSslMode.None
+            };
+
+            List<string> codes = new List<string>();
+
+            using (var connection = new MySqlConnection(builder.ConnectionString))
+            {
+                connection.Open();
+
+                // 모든 카드 코드 조회 쿼리
+                string query = "SELECT CardCode FROM Card";
+
+                using (var cmd = new MySqlCommand(query, connection))
+                {
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            codes.Add(reader.GetString("CardCode"));
+                        }
+                    }
+                }
+            }
+
+            // 결과 DTO 생성
+            CardCodeList responseDto = new CardCodeList { cardCodes = codes };
+
+            return new APIGatewayProxyResponse
+            {
+                StatusCode = 200,
+                Body = JsonConvert.SerializeObject(responseDto),
+                Headers = new Dictionary<string, string> { { "Content-Type", "application/json" } }
+            };
         }
 
         /// <summary>
